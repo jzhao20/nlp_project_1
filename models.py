@@ -4,7 +4,6 @@ from re import I
 from sentiment_data import *
 from utils import *
 import numpy as np
-from nltk.corpus import stopwords
 import random
 from collections import Counter
 import math
@@ -18,10 +17,11 @@ class FeatureExtractor(object):
             get_index= lambda word:self.feature_vector.index_of(f'Unigram:{word}')
             return [get_index(word) for word in sentence if get_index(word)!=-1]
         elif string_representation==BigramFeatureExtractor:
-            get_index=lambda word1,word2:self.feature_vector.index_of(f'Bigram:{word1}|{word2}')
-            return [get_index(sentence[i-1],sentence[i]) for i in range(1,len(sentence)) if get_index(sentence[i-1],sentence[i])]
+            get_index=lambda word:self.feature_vector.index_of(f'Bigram:{word}')
+            return [get_index(bigram) for bigram in sentence if get_index(bigram)!=-1]
         else:
-            return 'Better'
+            get_index= lambda word:self.feature_vector.index_of(f'Better:{word}')
+            return [get_index(word) for word in sentence if get_index(word)!=-1]
 
     def extract_features(self, sentence: List[str], add_to_indexer: bool=False) -> Counter:
         """
@@ -45,9 +45,9 @@ class UnigramFeatureExtractor(FeatureExtractor):
     """
     def __init__(self,train_exs: List[SentimentExample], indexer: Indexer):
         self.feature_vector=indexer
-        stop_words=set(stopwords.words('english'))
+        self.stop_words=["i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", "yourself", "yourselves", "he", "him", "his", "himself", "she", "her", "hers", "herself", "it", "its", "itself", "they", "them", "their", "theirs", "themselves", "what", "which", "who", "whom", "this", "that", "these", "those", "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "having", "do", "does", "did", "doing", "a", "an", "the", "and", "but", "if", "or", "because", "as", "until", "while", "of", "at", "by", "for", "with", "about", "against", "between", "into", "through", "during", "before", "after", "above", "below", "to", "from", "up", "down", "in", "out", "on", "off", "over", "under", "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just", "don", "should", "now"]
         for sentiment_train in train_exs:
-            filtered_sentence=[word.lower() for word in sentiment_train.words if not word.lower() in stop_words]
+            filtered_sentence=[word.lower() for word in sentiment_train.words if not word.lower() in self.stop_words]
             for words in filtered_sentence:
                 self.feature_vector.add_and_get_index(f'Unigram:{words}')
         self.weights=np.zeros(len(self.feature_vector))
@@ -59,18 +59,15 @@ class BigramFeatureExtractor(FeatureExtractor):
     """
     def __init__(self, train_exs: List[SentimentExample], indexer: Indexer):
         self.feature_vector=indexer
-        stop_words=set(stopwords.words('english'))
+        self.stop_words=["i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", "yourself", "yourselves", "he", "him", "his", "himself", "she", "her", "hers", "herself", "it", "its", "itself", "they", "them", "their", "theirs", "themselves", "what", "which", "who", "whom", "this", "that", "these", "those", "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "having", "do", "does", "did", "doing", "a", "an", "the", "and", "but", "if", "or", "because", "as", "until", "while", "of", "at", "by", "for", "with", "about", "against", "between", "into", "through", "during", "before", "after", "above", "below", "to", "from", "up", "down", "in", "out", "on", "off", "over", "under", "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just", "don", "should", "now"]
         for sentiment_train in train_exs:
-            filtered_sentence=[word.lower() for word in sentiment_train.words if not word.lower() in stop_words]
+            filtered_sentence=[word.lower() for word in sentiment_train.words if not word.lower() in self.stop_words]
             filtered_sentence=[f'{filtered_sentence[i-1]}|{filtered_sentence[i]}' for i in range(1,len(filtered_sentence))]
-            output=super().extract_features(filtered_sentence)
-            for words in output:
+            for words in filtered_sentence:
                 self.feature_vector.add_and_get_index(f'Bigram:{words}')
         self.weights=np.zeros(len(self.feature_vector))
     def extract_features(self, sentence: List[str], add_to_indexer: bool=False):
-        #break sentence apart so it's a bigram
-        stop_words=set(stopwords.words('english'))
-        filtered_sentence=[word.lower() for word in sentence if not word.lower() in stop_words]
+        filtered_sentence=[word.lower() for word in sentence if not word.lower() in self.stop_words]
         filtered_sentence=[f'{filtered_sentence[i-1]}|{filtered_sentence[i]}' for i in range(1,len(filtered_sentence))]
         return super().extract_features(filtered_sentence)
 
@@ -79,8 +76,18 @@ class BetterFeatureExtractor(FeatureExtractor):
     """
     Better feature extractor...try whatever you can think of!
     """
-    def __init__(self, indexer: Indexer):
-        raise Exception("Must be implemented")
+    #discard rare words
+    def __init__(self, train_exs:List[SentimentExample],indexer: Indexer):
+        self.feature_vector=indexer
+        self.stop_words=["i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", "yourself", "yourselves", "he", "him", "his", "himself", "she", "her", "hers", "herself", "it", "its", "itself", "they", "them", "their", "theirs", "themselves", "what", "which", "who", "whom", "this", "that", "these", "those", "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "having", "do", "does", "did", "doing", "a", "an", "the", "and", "but", "if", "or", "because", "as", "until", "while", "of", "at", "by", "for", "with", "about", "against", "between", "into", "through", "during", "before", "after", "above", "below", "to", "from", "up", "down", "in", "out", "on", "off", "over", "under", "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just", "don", "should", "now"]
+        c=Counter()
+        for sentiment_train in train_exs:
+            filtered_sentence=[word.lower() for word in sentiment_train.words if not word.lower() in self.stop_words]
+            c.update(self.extract_features(filtered_sentence))
+            for words in c:
+                if c[words]>1:
+                    self.feature_vector.add_and_get_index(f'Better:{words}')
+        self.weights=np.zeros(len(self.feature_vector))
 
 
 class SentimentClassifier(object):
@@ -218,7 +225,7 @@ def train_model(args, train_exs: List[SentimentExample], dev_exs: List[Sentiment
         feat_extractor = BigramFeatureExtractor(train_exs,Indexer())
     elif args.feats == "BETTER":
         # Add additional preprocessing code here
-        feat_extractor = BetterFeatureExtractor(Indexer())
+        feat_extractor = BetterFeatureExtractor(train_exs,Indexer())
     else:
         raise Exception("Pass in UNIGRAM, BIGRAM, or BETTER to run the appropriate system")
 
